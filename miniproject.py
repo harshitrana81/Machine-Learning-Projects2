@@ -16,7 +16,7 @@ st.write("This app predicts hourly electricity consumption using a Random Forest
 @st.cache_data
 def load_data():
     # Make sure DUQ_hourly.csv is in your GitHub repo!
-    df = pd.read_csv("DUQ_hourly.csv", parse_dates=['Datetime'])
+    df = pd.read_csv("DUQ_hourly.csv.zip", parse_dates=['Datetime'])
     df.set_index('Datetime', inplace=True)
     df.index = pd.to_datetime(df.index)
     df.sort_index(inplace=True)
