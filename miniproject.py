@@ -68,7 +68,7 @@ if st.button("Predict Current Demand"):
 
         row = pd.DataFrame({
             'hour': [loop_time.hour],
-            'day_of_week': [loop_time.dayofweek],
+            'day_of_week': [loop_time.weekday()],
             'month': [loop_time.month],
             'lag_1': [temp_history[-1]],
             'ma_3': [current_ma3]  
