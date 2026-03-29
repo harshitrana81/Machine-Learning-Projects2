@@ -1,72 +1,85 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import datetime
+from datetime import datetime
 
-# --- SET UP ---
-st.set_page_config(page_title="Electricity Forecast AI", layout="centered")
-st.title("⚡ Electricity Consumption Predictor")
-st.write("Predicting real-time energy demand using Random Forest.")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Electricity Forecast", page_icon="⚡")
 
-# --- LOAD MODEL ---
-@st.cache_resource # This ensures the model only loads ONCE for speed
+# --- 1. LOAD THE MODEL (Optimized) ---
+@st.cache_resource
 def load_model():
-    return joblib.load('electricity_rf_model.pkl')
+    # Ensure this filename matches exactly what you uploaded to GitHub
+    return joblib.load('electricity_rf_model.joblib')
 
 model = load_model()
 
-# --- INPUT SECTION ---
-st.subheader("1. Enter Current Data")
-col1, col2 = st.columns(2)
+# --- 2. DATA PREPARATION ---
+# Note: In a real app, you'd load your latest CSV here to get the 'history'
+# For this example, we will use placeholder 'history' data
+st.title("⚡ Smart Grid: Electricity Demand Predictor")
+st.write("Predicting real-time energy consumption using Random Forest.")
 
-with col1:
-    input_date = st.date_input("Select Date", datetime.date.today())
-    input_time = st.time_input("Select Time", datetime.time(12, 0))
-    target_dt = pd.to_datetime(f"{input_date} {input_time}")
+# Sidebar for inputs
+st.sidebar.header("User Input Parameters")
+input_date = st.sidebar.date_input("Select Date", datetime.now())
+input_time = st.sidebar.time_input("Select Time", datetime.now())
 
-with col2:
-    # In a real app, 'last_val' would come from your hardware/API
-    last_val = st.number_input("Last Hour Consumption (MW)", value=15000.0)
-    # For MA_3, we'll simulate the history or let user input it
-    ma3_val = st.number_input("3-Hour Moving Average (MW)", value=14800.0)
+# Combine date and time
+user_datetime = datetime.combine(input_date, input_time)
 
-# --- PREDICTION ---
-if st.button("Predict & Forecast 24 Hours"):
-    # Create features for the first prediction
-    first_row = pd.DataFrame({
-        'hour': [target_dt.hour],
-        'day_of_week': [target_dt.dayofweek],
-        'month': [target_dt.month],
-        'lag_1': [last_val],
-        'ma_3': [ma3_val]
-    })
+# --- 3. THE PREDICTION LOGIC ---
+# In your Colab, history was df['DUQ_MW'].tail(3).tolist()
+# We'll simulate this with sample values (Update these with your real data)
+history = [14500.0, 15200.0, 14800.0] 
+
+initial_ma3 = sum(history) / 3
+
+# Define the features exactly as they were during model training
+features = ['hour', 'day_of_week', 'month', 'lag_1', 'ma_3']
+
+first_row = pd.DataFrame({
+    'hour': [user_datetime.hour],
+    'day_of_week': [user_datetime.weekday()], # Monday=0, Sunday=6
+    'month': [user_datetime.month],
+    'lag_1': [history[-1]], 
+    'ma_3': [initial_ma3]   
+})
+
+if st.button("Predict Current Demand"):
+    current_prediction = model.predict(first_row[features])[0]
     
-    current_pred = model.predict(first_row)[0]
-    st.success(f"Immediate Prediction for {target_dt.strftime('%H:%M')}: **{current_pred:.2f} MW**")
+    st.metric(label=f"Predicted Demand for {user_datetime.strftime('%H:%M')}", 
+              value=f"{current_prediction:.2f} MW")
+
+    st.divider()
+
+    # --- 4. 24-HOUR FORECAST ---
+    st.subheader("📅 24-Hour Forecast (Recursive)")
     
-    # --- 24 HOUR FORECAST LOOP ---
-    history = [ma3_val, last_val, current_pred] # Sliding window
     forecast_results = []
-    loop_time = target_dt
-    
+    temp_history = history.copy()
+    temp_history.append(current_prediction)
+    loop_time = user_datetime
+
     for i in range(24):
         loop_time += pd.Timedelta(hours=1)
-        current_ma = sum(history[-3:]) / 3
-        
+        current_ma3 = sum(temp_history[-3:]) / 3
+
         row = pd.DataFrame({
             'hour': [loop_time.hour],
             'day_of_week': [loop_time.dayofweek],
             'month': [loop_time.month],
-            'lag_1': [history[-1]],
-            'ma_3': [current_ma]
+            'lag_1': [temp_history[-1]],
+            'ma_3': [current_ma3]  
         })
-        
-        pred = model.predict(row)[0]
-        forecast_results.append({"Time": loop_time, "Predicted MW": pred})
-        history.append(pred)
-        
-    # Display Results
+
+        pred = model.predict(row[features])[0]
+        forecast_results.append({'Time': loop_time, 'Predicted_MW': pred})
+        temp_history.append(pred)
+
     forecast_df = pd.DataFrame(forecast_results)
-    st.subheader("📅 24-Hour Forecast Chart")
+    
+    # Display results as a Chart and Table
     st.line_chart(forecast_df.set_index('Time'))
-    st.write(forecast_df)
+    st.dataframe(forecast_df, use_container_width=True)
