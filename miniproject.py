@@ -10,7 +10,7 @@ st.set_page_config(page_title="Electricity Forecast", page_icon="⚡")
 @st.cache_resource
 def load_model():
     # Ensure this filename matches exactly what you uploaded to GitHub
-    return joblib.load('electricity_rf_model(1).joblib')
+    return joblib.load('electricity_rf_model.joblib')
 
 model = load_model()
 
