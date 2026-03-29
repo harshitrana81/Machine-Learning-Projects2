@@ -55,9 +55,9 @@ if st.button("Predict Current Demand"):
               value=f"{current_prediction:.2f} MW")
 
     st.divider()
-
-    # --- 4. 24-HOUR FORECAST ---
-    st.subheader("📅 24-Hour Forecast (Recursive)")
+   # --- 4. 24-HOUR FORECAST VISUALIZATION ---
+    st.divider()
+    st.subheader("📊 24-Hour Energy Demand Forecast")
     
     forecast_results = []
     temp_history = history.copy()
@@ -65,7 +65,6 @@ if st.button("Predict Current Demand"):
     loop_time = user_datetime
 
     for i in range(24):
-        # pd.Timedelta handles the transition across midnight/new days perfectly
         loop_time += pd.Timedelta(hours=1)
         current_ma3 = sum(temp_history[-3:]) / 3
 
@@ -79,13 +78,30 @@ if st.button("Predict Current Demand"):
 
         pred = model.predict(row[features])[0]
         forecast_results.append({
-            'Time': loop_time.strftime('%Y-%m-%d %I:%M %p'), # Clear AM/PM format
-            'Predicted_MW': pred
+            'Time': loop_time, 
+            'Demand_MW': pred
         })
         temp_history.append(pred)
 
     forecast_df = pd.DataFrame(forecast_results)
+
+    # Better Visualization: Area Chart for "Power" look
+    st.area_chart(forecast_df.set_index('Time'), color="#FF4B4B")
+
+    # Adding "Insight" Metrics
+    col1, col2 = st.columns(2)
+    with col1:
+        peak_val = forecast_df['Demand_MW'].max()
+        peak_time = forecast_df.loc[forecast_df['Demand_MW'].idxmax(), 'Time'].strftime('%I:%M %p')
+        st.metric("Peak Forecasted Demand", f"{peak_val:.2f} MW", help="Highest expected load in next 24h")
     
-    # Visualizing the trend
-    st.line_chart(forecast_df.set_index('Time'))
-    st.dataframe(forecast_df, use_container_width=True)
+    with col2:
+        st.write(f"**Peak expected at:** {peak_time}")
+        st.write("**Trend:** " + ("📈 Increasing" if forecast_df['Demand_MW'].iloc[-1] > current_prediction else "📉 Decreasing"))
+
+    # Expandable Table for raw data
+    with st.expander("View Detailed Hourly Forecast Data"):
+        # Format time for display in the table
+        display_df = forecast_df.copy()
+        display_df['Time'] = display_df['Time'].dt.strftime('%Y-%m-%d %I:%M %p')
+        st.dataframe(display_df, use_container_width=True)
