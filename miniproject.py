@@ -25,7 +25,7 @@ col1, col2 = st.columns([1, 2], gap="large")
 with col1:
     st.header("User Input")
     input_date = st.date_input("Select Date", datetime.now())
-    input_time = st..time_input("Select Time", datetime.now())
+    input_time = st.time_input("Select Time", datetime.now())
     user_datetime = datetime.combine(input_date, input_time)
 
     # Prediction Logic Data
